@@ -541,3 +541,9 @@ p.card-bio {
 .message-404 .form-inline input {
   flex: 1;
 }
+
+/* ================================ flash messages */
+
+.alert {
+  color: rgb(4, 133, 255);
+}
