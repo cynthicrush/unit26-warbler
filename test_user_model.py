@@ -15,7 +15,7 @@ from models import db, User, Message, Follows
 # before we import our app, since that will have already
 # connected to the database
 
-os.environ['DATABASE_URL'] = "postgresql:///warbler-test"
+os.environ['DATABASE_URL'] = "postgresql:///warbler_test"
 
 
 # Now we can import app
@@ -34,10 +34,26 @@ class UserModelTestCase(TestCase):
 
     def setUp(self):
         """Create test client, add sample data."""
+        db.drop_all()
+        db.create_all()
 
-        User.query.delete()
-        Message.query.delete()
-        Follows.query.delete()
+        user1 = User.signup('TestUser1', 'email1@email.com', 'password1', 'https://images.freeimages.com/images/small-previews/81e/number-one-1504449.jpg')
+        user1_id = 1111
+        user1.id = user1_id
+
+        user2 = User.signup('TestUser2', 'email2@email.com', 'password2', 'https://images.freeimages.com/images/small-previews/d63/two-1233942.jpg')
+        user2_id = 2222
+        user2.id = user2_id
+
+        db.session.commit()
+
+        user1 = User.query.get(user1.id)
+        user2 = User.query.get(user2.id)
+
+        self.user1 = user1
+        self.user1_id = user1_id
+        self.user2 = user2
+        self.user1_id = user2_id
 
         self.client = app.test_client()
 
@@ -56,3 +72,27 @@ class UserModelTestCase(TestCase):
         # User should have no messages & no followers
         self.assertEqual(len(u.messages), 0)
         self.assertEqual(len(u.followers), 0)
+
+    def test_is_following(self):
+        '''
+            Does is_following successfully detect when user1 is following user2?
+            Does is_following successfully detect when user1 is not following user2?
+        '''
+
+        self.user1.following.append(self.user2)
+        db.session.commit()
+
+        self.assertTrue(self.user1.is_following(self.user2))
+        self.assertFalse(self.user2.is_following(self.user1))
+
+    def test_is_followed_by(self):
+        '''
+            Does is_followed_by successfully detect when user1 is followed by user2?
+            Does is_followed_by successfully detect when user1 is not followed by user2?
+        '''
+
+        self.user1.following.append(self.user2)
+        db.session.commit()
+
+        self.assertTrue(self.user1.is_followed_by(self.user2))
+        self.assertFalse(self.user2.is_followed_by(self.user1))
