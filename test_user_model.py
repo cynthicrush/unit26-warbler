@@ -8,6 +8,7 @@
 
 import os
 from unittest import TestCase
+from sqlalchemy import exc
 
 from models import db, User, Message, Follows
 
@@ -39,11 +40,11 @@ class UserModelTestCase(TestCase):
         db.create_all()
 
         user1 = User.signup('TestUser1', 'email1@email.com', 'password1', 'https://images.freeimages.com/images/small-previews/81e/number-one-1504449.jpg')
-        user1_id = 1111
+        user1_id = 11111
         user1.id = user1_id
 
         user2 = User.signup('TestUser2', 'email2@email.com', 'password2', 'https://images.freeimages.com/images/small-previews/d63/two-1233942.jpg')
-        user2_id = 2222
+        user2_id = 22222
         user2.id = user2_id
 
         db.session.commit()
@@ -57,6 +58,11 @@ class UserModelTestCase(TestCase):
         self.user1_id = user2_id
 
         self.client = app.test_client()
+
+    def tearDown(self):
+        res = super().tearDown()
+        db.session.rollback()
+        return res
 
     def test_user_model(self):
         """Does basic model work?"""
@@ -95,5 +101,52 @@ class UserModelTestCase(TestCase):
         self.user1.following.append(self.user2)
         db.session.commit()
 
-        self.assertTrue(self.user1.is_followed_by(self.user2))
-        self.assertFalse(self.user2.is_followed_by(self.user1))
+        self.assertTrue(self.user2.is_followed_by(self.user1))
+        self.assertFalse(self.user1.is_followed_by(self.user2))
+
+    def test_invalid_signup(self):
+        '''Does User.create successfully create a new user given valid credentials?'''
+
+        new_test_user = User.signup('NewTestUser', 'newtestuser@email.com', 'password3', 'https://images.freeimages.com/images/small-previews/10d/house-number-1199629.jpg')
+        new_test_user_id = 3333
+        new_test_user.id = new_test_user_id
+
+        db.session.commit()
+
+        new_test_user = User.query.get(new_test_user_id)
+
+        self.assertEqual(new_test_user.username, 'NewTestUser')
+        self.assertEqual(new_test_user.email, 'newtestuser@email.com')
+        self.assertEqual(new_test_user.image_url, 'https://images.freeimages.com/images/small-previews/10d/house-number-1199629.jpg')
+        self.assertNotEqual(new_test_user.password, 'password3')
+        self.assertTrue(new_test_user.password.startswith('$2b$'))
+
+    def test_invalid_signup(self):
+        '''Does User.create fail to create a new user if any of the validations (e.g. uniqueness, non-nullable fields) fail?'''
+
+        invalid = User.signup('TestUser2', 'email2@email.com', 'password3', None)
+        invalid_user_id = 4444
+        invalid.id = invalid_user_id
+
+        empty_invalid = User.signup('', '', 'password3', None)
+        invalid_empty_user_id = 4444
+        empty_invalid.id = invalid_empty_user_id
+        
+        with self.assertRaises(exc.IntegrityError) as context:
+            db.session.commit()
+        with self.assertRaises(ValueError) as context:
+            User.signup('TestUser3', 'email3@email.com', None, None)
+            User.signup('TestUser3', 'email3@email.com', '', None)
+
+    def test_invalid_authentication(self):
+        '''
+            Does User.authenticate successfully return a user when given a valid username and password?
+            Does User.authenticate fail to return a user when the username is invalid?
+            Does User.authenticate fail to return a user when the password is invalid?
+        '''
+
+        user1 = User.authenticate(self.user1.username, 'password1')
+        self.assertEqual(user1.id, self.user1_id)
+        self.assertFalse(User.authenticate('WrongUsername', 'password1'))
+        self.assertFalse(User.authenticate(self.user1.username, 'WrongPassword'))
+
