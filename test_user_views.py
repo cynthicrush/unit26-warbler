@@ -93,7 +93,7 @@ class UserViewTestCase(TestCase):
             self.assertIn('TestUser2', str(response.data))
             self.assertNotIn('TestUser3', str(response.data))
 
-    def test_show_unauthorized_followers_page(self):
+    def test_show_unauthentication_followers_page(self):
         '''
             When you are logged out, are you disallowed from visiting a user is follower pages?
         '''
@@ -102,9 +102,9 @@ class UserViewTestCase(TestCase):
         with self.client as c:
 
             response = c.get(f'/users/{self.testuser_id}/followers', follow_redirects=True)
-            self.assertEqual(response.status_code, 404)
+            self.assertEqual(response.status_code, 200)
             self.assertNotIn('testuser', str(response.data))
-            self.assertIn('Access unauthorized', str(response.data))
+            self.assertIn('Access unauthentication', str(response.data))
 
     def test_show_unauthorized_followings_page(self):
         '''
@@ -114,8 +114,8 @@ class UserViewTestCase(TestCase):
         self.setup_follows()
         with self.client as c:
 
-            response = c.get(f'/users/{self.testuser_id}/followings', follow_redirects=True)
-            self.assertEqual(response.status_code, 404)
+            response = c.get(f'/users/{self.testuser_id}/following', follow_redirects=True)
+            self.assertEqual(response.status_code, 200)
             self.assertNotIn('testuser', str(response.data))
             self.assertIn('Access unauthorized', str(response.data))
 
