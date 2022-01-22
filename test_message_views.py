@@ -74,3 +74,78 @@ class MessageViewTestCase(TestCase):
             msg = Message.query.one()
             self.assertEqual(msg.text, "Hello")
 
+    def test_delete_message(self):
+        '''When you're logged in, can you delete a message as yourself?'''
+
+        message = Message(id=11111, text='Test message 1.', user_id=self.testuser_id)
+        db.session.add(message)
+        db.session.commit()
+
+        with self.client as c:
+            with c.session_transaction() as sess:
+                sess[CURR_USER_KEY] = self.testuser.id
+
+            response = c.post('/messages/11111/delete', follow_redirects=True)
+            self.assertEqual(response.status_code, 200)
+
+            message = Message.query.get(11111)
+            self.assertIsNone(message)
+
+    def test_unauthenticated_message_add(self):
+        '''When you're logged out, are you prohibited from adding messages?'''
+
+        with self.client as c:
+            response = c.post('/messages/new', follow_redirects=True)
+
+            self.assertEqual(response.status_code, 200)
+            self.assertIn('Access unauthorized', str(response.data))
+
+    def test_unauthenticated_message_delete(self):
+        '''When you're logged out, are you prohibited from deleting messages?'''
+
+        message = Message(id=11111, text='Test message 1.', user_id=self.testuser_id)
+        db.session.add(message)
+        db.session.commit()
+
+        with self.client as c:
+            response = c.post('/messages/11111/delete', follow_redirects=True)
+
+            self.assertEqual(response.status_code, 200)
+            self.assertIn('Access unauthorized', str(response.data))
+    
+    def test_unauthorizated_message_add(self):
+        '''When you’re logged in, are you prohibiting from adding a message as another user?'''
+
+        message = Message(id=11111, text='Test message 1.', user_id=self.testuser_id)
+        db.session.add(message)
+        db.session.commit()
+
+        user = User.signup(username='Unauthorizated', email='email@email.com', password='password', image_url=None)
+        user.id = 77777
+
+        with self.client as c:
+            with c.session_transaction() as sess:
+                sess[CURR_USER_KEY] = 77777
+
+            response = c.post('/messages/new', follow_redirects=True)
+            self.assertEqual(response.status_code, 200)
+            self.assertIn('Access unauthorized', str(response.data))
+
+    def test_unauthorizated_message_delete(self):
+        '''When you’re logged in, are you prohibiting from adding a message as another user?'''
+
+        message = Message(id=11111, text='Test message 1.', user_id=self.testuser_id)
+        db.session.add(message)
+        db.session.commit()
+
+        user = User.signup(username='Unauthorizated', email='email@email.com', password='password', image_url=None)
+        user.id = 77777
+
+        with self.client as c:
+            with c.session_transaction() as sess:
+                sess[CURR_USER_KEY] = 77777
+
+            response = c.post('/messages/11111/delete', follow_redirects=True)
+            self.assertEqual(response.status_code, 200)
+            self.assertIn('Access unauthorized', str(response.data))
+
