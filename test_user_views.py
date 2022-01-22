@@ -102,7 +102,7 @@ class UserViewTestCase(TestCase):
         with self.client as c:
 
             response = c.get(f'/users/{self.testuser_id}/followers', follow_redirects=True)
-            self.assertEqual(response.status_code, 200)
+            self.assertEqual(response.status_code, 404)
             self.assertNotIn('testuser', str(response.data))
             self.assertIn('Access unauthorized', str(response.data))
 
